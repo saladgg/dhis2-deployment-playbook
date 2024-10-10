@@ -1,0 +1,25 @@
+---
+
+- name: Update packages
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+  tags: ["common"]
+
+- name: Install necessities
+  ansible.builtin.apt:
+    name:
+      - acl
+      - apt-transport-https
+      - build-essential
+      - ca-certificates
+      - curl
+      - libssl-dev
+      - nano
+      - ntp
+      - software-properties-common
+      - unzip
+      - vim
+    state: present
+  become: true
+  tags: ["common"]

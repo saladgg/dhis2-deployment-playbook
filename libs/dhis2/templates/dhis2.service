@@ -1,0 +1,16 @@
+[Unit]
+Description=DHIS 2
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+User={{ dhis2_app_user }}
+Group={{ dhis2_app_user_group }}
+WorkingDirectory=/home/{{ dhis2_app_user }}/apache_tomcat/bin
+ExecStart=/home/{{ dhis2_app_user }}/apache_tomcat/bin/startup.sh
+ExecStop=/home/{{ dhis2_app_user }}/apache_tomcat/bin/shutdown.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

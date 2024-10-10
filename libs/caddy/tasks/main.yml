@@ -1,0 +1,51 @@
+---
+
+- name: Ensure required variables have been set
+  ansible.builtin.fail:
+    msg: "'{{ item.name }}' is not defined"
+  loop:
+    - { name: caddy_app_user, value: "{{ caddy_app_user }}" }
+    - { name: caddy_app_user_group, value: "{{ caddy_app_user_group }}" }
+    - { name: caddy_app_host_domain, value: "{{ caddy_app_host_domain }}" }
+    - { name: caddy_app_service_address, value: "{{ caddy_app_service_address }}" }
+  when: not item.value
+  tags: ["caddy"]
+
+- name: Install caddy server
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+  become: true
+  tags: ["caddy"]
+
+- name: Copy Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    backup: true
+    force: true
+    owner: caddy
+    group: caddy
+    mode: ug=rw,o=r
+  become: true
+  tags: ["caddy"]
+
+- name: Restart Caddy
+  ansible.builtin.systemd_service:
+    state: restarted
+    daemon_reload: true
+    enabled: true
+    name: caddy
+  become: true
+  tags: ["caddy"]
+
+- name: Create a folder for Caddy server logs
+  ansible.builtin.file:
+    path: /var/log/caddy
+    state: directory
+    mode: ug=rw,o=r
+    recurse: true
+    owner: "{{ caddy_app_user }}"
+    group: "{{ caddy_app_user_group }}"
+  become: true
+  tags: ["caddy"]

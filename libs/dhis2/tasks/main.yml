@@ -1,0 +1,308 @@
+---
+
+- name: Ensure required variables have been set
+  ansible.builtin.fail:
+    msg: "'{{ item.name }}' is not defined"
+  loop:
+    - { name: dhis2_app_name, value: "{{ dhis2_app_name }}" }
+    - { name: dhis2_app_user, value: "{{ dhis2_app_user }}" }
+    - { name: dhis2_app_user_group, value: "{{ dhis2_app_user_group }}" }
+    - { name: dhis2_db_name, value: "{{ dhis2_db_name }}" }
+    - { name: dhis2_db_user, value: "{{ dhis2_db_user }}" }
+    - { name: dhis2_db_user_password, value: "{{ dhis2_db_user_password }}" }
+    - { name: dhis2_pg_max_connections, value: "{{ dhis2_pg_max_connections }}" }
+    - { name: dhis2_pg_shared_buffers, value: "{{ dhis2_pg_shared_buffers }}" }
+    - { name: dhis2_pg_work_mem, value: "{{ dhis2_pg_work_mem }}" }
+    - { name: dhis2_pg_maintenance_work_mem, value: "{{ dhis2_pg_maintenance_work_mem }}" }
+    - { name: dhis2_pg_temp_buffers, value: "{{ dhis2_pg_temp_buffers }}" }
+    - { name: dhis2_pg_effective_cache_size, value: "{{ dhis2_pg_effective_cache_size }}" }
+    - { name: dhis2_pg_wal_writer_delay, value: "{{ dhis2_pg_wal_writer_delay }}" }
+    - { name: dhis2_host_domain_address, value: "{{ dhis2_host_domain_address }}" }
+    - { name: dhis2_local_service_port, value: "{{ dhis2_local_service_port }}" }
+    - { name: dhis2_java_opts, value: "{{ dhis2_java_opts }}" }
+  when: not item.value
+  tags: ["dhis2"]
+
+- name: Set server time zone and locale
+  become: true
+  tags: ["dhis2"]
+  block:
+    - name: Reconfigure timezone data
+      ansible.builtin.command: sudo dpkg-reconfigure -f noninteractive tzdata
+
+    - name: Get current locale
+      ansible.builtin.command: locale -a
+      register: current_locale
+
+    - name: Generate the current locale (excluding POSIX and other invalid entries)
+      ansible.builtin.command: sudo locale-gen "{{ item }}"
+      loop: "{{ current_locale.stdout_lines | difference(['POSIX', 'C']) }}"
+
+    - name: Update locale environment
+      ansible.builtin.lineinfile:
+        path: /etc/default/locale
+        line: 'LANG={{ current_locale.stdout_lines[0] }}'
+        create: true
+
+- name: Add the Ubuntu repository for tomcat9-user installation
+  ansible.builtin.apt_repository:
+    repo: "deb http://archive.ubuntu.com/ubuntu/ jammy main universe"
+    state: present
+  become: true
+  tags: ["dhis2"]
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+  tags: ["dhis2"]
+
+- name: Install OpenJDK-21 and tomcat9-user
+  ansible.builtin.apt:
+    name:
+      - openjdk-21-jdk
+      - tomcat9-user
+    state: present
+    update_cache: true
+  become: true
+  tags: ["dhis2"]
+
+- name: Create dhis2 config directory
+  ansible.builtin.file:
+    path: "/home/{{ dhis2_app_user }}/config"
+    state: directory
+    owner: "{{ dhis2_app_user }}"
+    group: "{{ dhis2_app_user_group }}"
+    mode: ug=rwx,o=rx
+  become: true
+  tags: ["dhis2"]
+
+- name: Create dhis configuration file
+  ansible.builtin.template:
+    src: dhis.conf
+    dest: "/home/{{ dhis2_app_user }}/config/dhis.conf"
+    backup: true
+    force: true
+    owner: "{{ dhis2_app_user }}"
+    group: "{{ dhis2_app_user_group }}"
+    mode: ug=rwx,o=rx
+  become: true
+  tags: ["dhis2"]
+
+- name: Create tomcat instance
+  ansible.builtin.command: "sudo tomcat9-instance-create apache_tomcat"
+  args:
+    chdir: "/home/{{ dhis2_app_user }}"
+    creates: "/home/{{ dhis2_app_user }}/apache_tomcat"
+  become: true
+  tags: ["dhis2"]
+
+- name: Set ownership of user's home directory and contents recursively
+  ansible.builtin.file:
+    path: /home/{{ dhis2_app_user }}
+    recurse: true
+    owner: "{{ dhis2_app_user }}"
+    group: "{{ dhis2_app_user_group }}"
+    mode: "ug=rwx,o=rx"
+  become: true
+  tags: ["dhis2"]
+
+- name: Download dhis2 war file
+  ansible.builtin.get_url:
+    dest: "/home/{{ dhis2_app_user }}/apache_tomcat/webapps/ROOT.war"
+    force: true
+    group: "{{ dhis2_app_user_group }}"
+    mode: ug=rw,o=r
+    owner: "{{ dhis2_app_user }}"
+    timeout: 10
+    url: "{{ dhis2_app_war_url }}"
+  become: true
+  tags: ["dhis2"]
+
+- name: Copy required files
+  become: true
+  tags: ["dhis2"]
+  block:
+    - name: Copy setenv.sh file
+      ansible.builtin.template:
+        src: setenv.sh
+        dest: "/home/{{ dhis2_app_user }}/apache_tomcat/bin/setenv.sh"
+        backup: true
+        force: true
+        owner: "{{ dhis2_app_user }}"
+        group: "{{ dhis2_app_user_group }}"
+        mode: ug=rwx,o=rx
+
+    - name: Copy the startup.sh script
+      ansible.builtin.template:
+        src: startup.sh
+        dest: "/home/{{ dhis2_app_user }}/apache_tomcat/bin/startup.sh"
+        backup: true
+        force: true
+        owner: "{{ dhis2_app_user }}"
+        group: "{{ dhis2_app_user_group }}"
+        mode: ug=rwx,o=rx
+
+    - name: Copy the shutdown.sh script
+      ansible.builtin.template:
+        src: shutdown.sh
+        dest: "/home/{{ dhis2_app_user }}/apache_tomcat/bin/shutdown.sh"
+        backup: true
+        force: true
+        owner: "{{ dhis2_app_user }}"
+        group: "{{ dhis2_app_user_group }}"
+        mode: ug=rwx,o=rx
+
+    - name: Copy the server.xml configuration
+      ansible.builtin.template:
+        src: server.xml
+        dest: "/home/{{ dhis2_app_user }}/apache_tomcat/conf/server.xml"
+        backup: true
+        force: true
+        owner: "{{ dhis2_app_user }}"
+        group: "{{ dhis2_app_user_group }}"
+        mode: ug=rwx,o=rx
+
+    - name: Create dhis2 systemd service file
+      ansible.builtin.template:
+        src: dhis2.service
+        dest: "/etc/systemd/system/{{ dhis2_app_name }}.service"
+        backup: true
+        force: true
+        mode: ug=rw,o=r
+
+    - name: Reload systemctl daemon to pick new changes
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+- name: Gather database facts
+  become: true
+  tags: ["dhis2"]
+  block:
+    - name: Get PostgreSQL version without decimal part
+      become: true
+      become_user: postgres
+      ansible.builtin.shell: |
+        set -o pipefail; psql -V | awk '{print $3}' | cut -d '.' -f 1
+      args:
+        executable: /bin/bash
+      register: pg_version
+      changed_when: false
+
+    - name: Set PostgreSQL version as fact
+      ansible.builtin.set_fact:
+        pg_version: "{{ pg_version.stdout | int }}"
+
+    - name: Check if the database exists
+      become: true
+      become_user: postgres
+      ansible.builtin.shell: "psql -lqt | cut -d '|' -f 1 | grep -w {{ dhis2_db_name }}"
+      register: db_exists
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+
+- name: Override PostgreSQL configuration variables
+  ansible.builtin.lineinfile:
+    path: "/etc/postgresql/{{ pg_version }}/main/postgresql.conf"
+    regexp: "^#?{{ item.variable }}.*$"
+    line: "{{ item.variable }} = {{ item.value }}"
+    state: present
+  loop:
+    - { variable: "max_connections", value: "{{ dhis2_pg_max_connections }}" }
+    - { variable: "shared_buffers", value: "{{ dhis2_pg_shared_buffers }}" }
+    - { variable: "work_mem", value: "{{ dhis2_pg_work_mem }}" }
+    - { variable: "maintenance_work_mem", value: "{{ dhis2_pg_maintenance_work_mem }}" }
+    - { variable: "temp_buffers", value: "{{ dhis2_pg_temp_buffers }}" }
+    - { variable: "effective_cache_size", value: "{{ dhis2_pg_effective_cache_size }}" }
+    - { variable: "wal_writer_delay", value: "{{ dhis2_pg_wal_writer_delay }}" }
+  become: true
+  tags: ["dhis2"]
+
+- name: Setup Dhis2 database (Retain existing DB or Create new one)
+  when: (db_exists.rc != 0) or (dhis2_is_fresh_install)
+  become: true
+  tags: ["dhis2"]
+  block:
+    - name: Create database user
+      community.postgresql.postgresql_user:
+        name: "{{ dhis2_db_user }}"
+        password: "{{ dhis2_db_user_password }}"
+      become: true
+      become_user: postgres
+
+    - name: Refresh collation version for template1
+      ansible.builtin.command: "psql -c 'ALTER DATABASE template1 REFRESH COLLATION VERSION;'"
+      become: true
+      become_user: postgres
+      changed_when: false
+
+    - name: Create database
+      community.postgresql.postgresql_db:
+        name: "{{ dhis2_db_name }}"
+        owner: "{{ dhis2_db_user }}"
+        comment: "create {{ dhis2_db_name }} database"
+      become: true
+      become_user: postgres
+
+    - name: Grant all privileges to dhis2 db user
+      community.postgresql.postgresql_privs:
+        db: "{{ dhis2_db_name }}"
+        privs: ALL
+        type: database
+        role: "{{ dhis2_db_user }}"
+      become: true
+      become_user: postgres
+
+    - name: Allow md5 connection for the db user
+      community.postgresql.postgresql_pg_hba:
+        dest: "/etc/postgresql/{{ pg_version }}/main/pg_hba.conf"
+        contype: local
+        address: all
+        databases: all
+        method: md5
+        users: "{{ dhis2_db_user }}"
+        create: true
+      become: true
+      become_user: postgres
+    - name: Create PostgreSQL extensions if not exists
+      ansible.builtin.command: "psql -U postgres {{ dhis2_db_name }} -c '{{ item }}'"
+      loop:
+        - "create extension if not exists postgis;"
+        - "create extension if not exists btree_gin;"
+        - "create extension if not exists pg_trgm;"
+        - "create extension if not exists tablefunc;"
+      register: cmd_output
+      become: true
+      become_user: postgres
+      changed_when: "'CREATE EXTENSION' in cmd_output.stdout"
+
+    - name: Grant all privileges on table spatial_ref_sys to dhis user
+      community.postgresql.postgresql_privs:
+        db: "{{ dhis2_db_name }}"
+        role: "{{ dhis2_db_user }}"
+        type: table
+        obj: spatial_ref_sys
+        privs: ALL
+        state: present
+      become: true
+      become_user: postgres
+
+    - name: Alter postgis extension schema
+      ansible.builtin.command: "psql -U postgres {{ dhis2_db_name }} -c 'ALTER EXTENSION postgis SET SCHEMA public;'"
+      become: true
+      become_user: postgres
+      register: result
+      changed_when: "'SET SCHEMA' in result.stdout or 'SET SCHEMA' in result.stderr"
+
+- name: Setup caddy server as reverse proxy
+  ansible.builtin.import_role:
+    name: caddy
+  vars:
+    caddy_app_user: "{{ dhis2_app_user }}"
+    caddy_app_user_group: "{{ dhis2_app_user_group }}"
+    caddy_app_host_domain: "{{ dhis2_host_domain_address }}"
+    caddy_app_service_address: "http://localhost:{{ dhis2_local_service_port }}"
+  become: true
+  tags: ["dhis2"]
+  when: dhis2_caddy_as_reverse_proxy

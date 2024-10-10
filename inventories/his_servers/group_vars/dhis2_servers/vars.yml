@@ -1,0 +1,15 @@
+---
+
+dhis2_application_name: dhis2
+dhis2_application_user: dhis2
+dhis2_application_user_group: dhis2
+dhis2_application_war_url: https://releases.dhis2.org/41/dhis2-stable-41.0.1.war
+dhis2_application_catalina_home: /opt/apache_tomcat
+dhis2_application_java_opts: '-Xmx10000m -Xms3000m'
+dhis2_application_pg_max_connections: 100
+dhis2_application_pg_shared_buffers: 2400MB
+dhis2_application_pg_work_mem: 20MB
+dhis2_application_pg_maintenance_work_mem: 512MB
+dhis2_application_pg_temp_buffers: 16MB
+dhis2_application_pg_effective_cache_size: 3000MB
+dhis2_application_pg_wal_writer_delay: 10000ms

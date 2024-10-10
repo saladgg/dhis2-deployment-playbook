@@ -1,0 +1,6 @@
+---
+
+caddy_app_user: ""
+caddy_app_user_group: ""
+caddy_app_host_domain: ""
+caddy_app_service_address: 127.0.0.1:8080

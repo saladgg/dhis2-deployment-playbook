@@ -1,0 +1,35 @@
+---
+
+- name: Import PostgreSQL repository signing key
+  ansible.builtin.get_url:
+    url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+    dest: "/etc/apt/trusted.gpg.d/pgdg.asc"
+    validate_certs: false
+    mode: ug=rw,o=r
+  become: true
+  tags: ["postgres"]
+
+- name: Add PostgreSQL repository configuration
+  ansible.builtin.apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_lsb.codename }}-pgdg main"
+    state: present
+    update_cache: true
+  become: true
+  tags: ["postgres"]
+
+- name: Install PostgreSQL and PostGIS packages
+  ansible.builtin.apt:
+    name:
+      - postgresql-15
+      - postgresql-15-postgis-3
+      - python3-psycopg2
+    state: present
+  become: true
+  tags: ["postgres"]
+
+- name: Activate postgresql service
+  ansible.builtin.systemd_service:
+    enabled: true
+    name: postgresql
+  become: true
+  tags: ["postgres"]

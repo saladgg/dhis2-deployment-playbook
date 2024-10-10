@@ -1,0 +1,14 @@
+# =====================================
+# DHIS2 Servers
+# =====================================
+
+[local_servers]
+local_host ansible_connection=local
+
+[prod_servers]
+prod_server_1
+prod_server_2
+
+[dhis2_servers:children]
+local_servers
+prod_servers

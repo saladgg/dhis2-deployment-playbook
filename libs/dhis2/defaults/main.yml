@@ -1,0 +1,23 @@
+---
+
+dhis2_db_host: localhost
+dhis2_db_port: 5432
+dhis2_java_opts: '-Xmx10000m -Xms3000m'
+dhis2_app_user: dhis2
+dhis2_app_user_group: dhis2
+dhis2_app_war_url: https://releases.dhis2.org/41/dhis2-stable-41.0.1.war
+dhis2_host_domain_address: ""
+dhis2_local_service_port: 8080
+
+# PostgreSQL config variables
+dhis2_pg_max_connections: 200
+dhis2_pg_shared_buffers: 2400MB
+dhis2_pg_work_mem: 20MB
+dhis2_pg_maintenance_work_mem: 512MB
+dhis2_pg_temp_buffers: 16MB
+dhis2_pg_effective_cache_size: 3000MB
+dhis2_pg_wal_writer_delay: 10000ms
+
+# Conditional variables:
+dhis2_is_fresh_install: false
+dhis2_caddy_as_reverse_proxy: true

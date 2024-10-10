@@ -1,0 +1,98 @@
+---
+
+# Install command:
+# ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml --ask-become-pass -e dhis2_caddy_as_reverse_proxy=true -vvv
+
+- name: Install and set up DHIS2 on an Ubuntu 24.04 LTS
+  hosts: dhis2_servers
+  pre_tasks:
+    - name: Create deployment user
+      ansible.builtin.user:
+        groups:
+          - sudo
+          - www-data
+        name: "{{ deploy_user }}"
+        state: present
+        system: true
+      become: true
+    - name: Get lock file stats
+      ansible.builtin.stat:
+        path: "{{ lock_file_path }}"
+      become: true
+      register: deploy_dhis2_lock_file_stats
+    - name: Ensure another deployment is not running
+      ansible.builtin.fail:
+        msg: Another similar deployment appears to be in-progress
+      when: deploy_dhis2_lock_file_stats.stat.exists and not force_ignore_lock
+    - name: Create lock file
+      ansible.builtin.file:
+        mode: u=rw,go=---
+        owner: "{{ deploy_user }}"
+        path: "{{ lock_file_path }}"
+        state: touch
+      become: true
+    - name: Add application user_group
+      ansible.builtin.group:
+        name: "{{ dhis2_application_user_group }}"
+        state: present
+        system: true
+      become: true
+    - name: Add application user
+      ansible.builtin.user:
+        create_home: true
+        group: "{{ dhis2_application_user_group }}"
+        home: /home/{{ dhis2_application_user }}
+        name: "{{ dhis2_application_user }}"
+        shell: /bin/bash
+        state: present
+        system: true
+      become: true
+    - name: Stop DHIS2 service  # noqa: ignore-errors
+      ansible.builtin.systemd_service:
+        name: "{{ dhis2_application_name }}"
+        scope: system
+        state: stopped
+      become: true
+      ignore_errors: true  # Just in case the service doesn't exist yet, e.g on fresh installations.
+  post_tasks:
+    - name: Enable and restart DHIS2 application service
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+        enabled: true
+        force: true
+        name: "{{ dhis2_application_name }}"
+        scope: system
+        state: restarted
+      become: true
+    - name: Deploy successful, remove lock file
+      ansible.builtin.file:
+        path: "{{ lock_file_path }}"
+        state: absent
+      become: true
+  roles:
+    - common
+    - postgresql
+    - role: dhis2
+      vars:
+        dhis2_app_name: "{{ dhis2_application_name }}"
+        dhis2_app_user: "{{ dhis2_application_user }}"
+        dhis2_app_user_group: "{{ dhis2_application_user_group }}"
+        dhis2_db_name: "{{ dhis2_application_database_name }}"
+        dhis2_db_user: "{{ dhis2_application_database_user }}"
+        dhis2_db_user_password: "{{ dhis2_application_database_user_password }}"
+        dhis2_host_domain_address: "{{ dhis2_application_host_domain }}"
+        dhis2_java_opts: "{{ dhis2_application_java_opts }}"
+        dhis2_local_service_port: "{{ dhis2_application_local_service_port }}"
+        # Override PostgreSQL configs
+        dhis2_pg_effective_cache_size: "{{ dhis2_application_pg_effective_cache_size }}"
+        dhis2_pg_max_connections: "{{ dhis2_application_pg_max_connections }}"
+        dhis2_pg_maintenance_work_mem: "{{ dhis2_application_pg_maintenance_work_mem }}"
+        dhis2_pg_shared_buffers: "{{ dhis2_application_pg_shared_buffers }}"
+        dhis2_pg_temp_buffers: "{{ dhis2_application_pg_temp_buffers }}"
+        dhis2_pg_wal_writer_delay: "{{ dhis2_application_pg_wal_writer_delay }}"
+        dhis2_pg_work_mem: "{{ dhis2_application_pg_work_mem }}"
+  strategy: free  # noqa: run-once[play]
+  vars:
+    deploy_user: deploy
+    force_ignore_lock: false
+    lock_file_path: /tmp/ansible_deploy_dhis2.lock

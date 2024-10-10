@@ -1,0 +1,25 @@
+https://{{ caddy_app_host_domain }} {
+    reverse_proxy {{ caddy_app_service_address }}
+    log {
+        output file /var/log/caddy/caddy.https.log {
+            roll_size     10MiB
+            roll_keep     5
+            roll_keep_for 96h
+        }
+        format console
+        level  INFO
+    }
+}
+
+http://{{ caddy_app_host_domain }} {
+    log {
+        output file /var/log/caddy/caddy.http.log {
+            roll_size     10MiB
+            roll_keep     5
+            roll_keep_for 96h
+        }
+        format console
+        level  INFO
+    }
+    redir https://{host}{uri}
+}

@@ -1,0 +1,20 @@
+# Sample server
+Host prod_server_1
+    HostName prod_server_1
+
+# Server hosted on gcp
+Host dhis.server.at.gcp
+    HostName host.ip.address
+    IdentityFile /path/to/identity/file
+    UserKnownHostsFile=/path/to/known/hosts
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+# Authenticating target servers through teleport cluster
+Host *.his.org
+    HostName %h.prod.cluster.domain.address
+    User shared_user
+    Port 2025
+    ProxyCommand tsh proxy ssh %r@%h:%p
+    StrictHostKeyChecking no
+    UserKnownHostsFile=/dev/null

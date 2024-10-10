@@ -1,0 +1,7 @@
+---
+
+dhis2_application_host_domain: dhis.prod.server.org
+dhis2_application_database_user: "{{ vault_dhis2_application_database_user }}"
+dhis2_application_database_name: "{{ vault_dhis2_application_database_name }}"
+dhis2_application_local_service_port: "{{ vault_dhis2_application_local_service_port }}"
+dhis2_application_database_user_password: "{{ vault_dhis2_application_database_user_password }}"
