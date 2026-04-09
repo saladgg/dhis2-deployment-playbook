@@ -28,25 +28,29 @@
   tags: ["dhis2"]
   block:
     - name: Reconfigure timezone data
-      ansible.builtin.command: sudo dpkg-reconfigure -f noninteractive tzdata
+      ansible.builtin.command: dpkg-reconfigure -f noninteractive tzdata
+      changed_when: false
 
     - name: Get current locale
       ansible.builtin.command: locale -a
       register: current_locale
+      changed_when: false
 
     - name: Generate the current locale (excluding POSIX and other invalid entries)
-      ansible.builtin.command: sudo locale-gen "{{ item }}"
+      ansible.builtin.command: locale-gen "{{ item }}"
       loop: "{{ current_locale.stdout_lines | difference(['POSIX', 'C']) }}"
+      changed_when: false
 
     - name: Update locale environment
       ansible.builtin.lineinfile:
         path: /etc/default/locale
         line: 'LANG={{ current_locale.stdout_lines[0] }}'
         create: true
+        mode: "0644"
 
-- name: Add the Ubuntu repository for tomcat9-user installation
+- name: Add the Ubuntu universe repository for tomcat9-user installation
   ansible.builtin.apt_repository:
-    repo: "deb http://archive.ubuntu.com/ubuntu/ jammy main universe"
+    repo: "deb http://archive.ubuntu.com/ubuntu/ {{ ansible_lsb.codename }} main universe"
     state: present
   become: true
   tags: ["dhis2"]
@@ -90,7 +94,7 @@
   tags: ["dhis2"]
 
 - name: Create tomcat instance
-  ansible.builtin.command: "sudo tomcat9-instance-create apache_tomcat"
+  ansible.builtin.command: "tomcat9-instance-create apache_tomcat"
   args:
     chdir: "/home/{{ dhis2_app_user }}"
     creates: "/home/{{ dhis2_app_user }}/apache_tomcat"

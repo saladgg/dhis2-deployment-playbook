@@ -26,24 +26,24 @@ Repository directory structure
 
 ```
 dhis2-deployment-playbook
-└── inventories - host configurations for different environments
-    ├── his_servers - generic name for this deployment
-    |   ├── group_vars - for variables meant to affect a collection of servers
-    |   ├── host_vars - for variables meant to affect specific servers
-    |   └── hosts - essential file for grouping hosts
-    |
-    ├── libs - collection of roles used to defined reusable behavior
-    |   ├── caddy - caddy server installation role
-    |   ├── common - essential packages role
-    |   ├── dhis2 - dhis2 installation role
-    |   └── postgresql - postgreSQL installation role
-    ├── plays - entry point for any deployment
-    |   └── install_dhis2.yml - runs deployment on specified target host(s)
-    ├── .pre-commit-config.yaml
-    ├── ansible.cfg
-    ├── ssh.cfg
-    ├── requirements.yml
-    └── README.md
+├── inventories - host configurations for different environments
+|   └── his_servers - generic name for this deployment
+|       ├── group_vars - for variables meant to affect a collection of servers
+|       ├── host_vars - for variables meant to affect specific servers
+|       └── hosts - essential file for grouping hosts
+|
+├── libs - collection of roles used to define reusable behavior
+|   ├── caddy - caddy server installation role
+|   ├── common - essential packages role
+|   ├── dhis2 - dhis2 installation role
+|   └── postgresql - postgreSQL installation role
+├── plays - entry point for any deployment
+|   └── install_dhis2.yml - runs deployment on specified target host(s)
+├── .pre-commit-config.yaml
+├── ansible.cfg
+├── ssh.cfg
+├── requirements.yml
+└── README.md
 ```
 
 Managing secrets
@@ -51,6 +51,7 @@ Managing secrets
 - Configuration files under inventories may contain values that need to be kept secret. [Ansible vault](https://docs.ansible.com/ansible/latest/vault_guide/vault.html) helps to encrypt variables and files.
 - **NOTE**: this repo is essentially a template that can be improvised for individual use, that said, all secrets here have been
   encrypted with a simple password: `1234`
+- **WARNING**: Before using this in any real environment, you **must** re-encrypt all vault files with a strong password. Run `ansible-vault rekey <vault_file> --ask-vault-password` for each vault file to replace the default password.
 
 ```bash
 dhis2-dep-pb~$ ansible-vault encrypt inventories/his_servers/group_vars/all/vault.yml --ask-vault-password
@@ -68,7 +69,7 @@ Cloning the repo:
 -----------------
 - First, clone the repo, cd into it and run below command to install requirements:
 ```bash
-dhis2-dep-pb~$ ansible-galaxy collection install -r requirements.yaml
+dhis2-dep-pb~$ ansible-galaxy collection install -r requirements.yml
 ```
 
 Sample deployment commands:
@@ -88,6 +89,3 @@ Limit the deployment to the control node:
 Skip deploying caddy server:
 
 `dhis2-dep-pb~$ ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml -e dhis2_caddy_as_reverse_proxy=false`
-
-## Todos:
-- improve this documentation

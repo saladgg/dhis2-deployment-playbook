@@ -12,5 +12,3 @@ exclude_paths:
   - .github
   - .pre-commit-config.yaml
   - .vscode
-  - libs/common
-  - libs/dhis2
