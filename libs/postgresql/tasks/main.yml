@@ -4,7 +4,7 @@
   ansible.builtin.get_url:
     url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
     dest: "/etc/apt/trusted.gpg.d/pgdg.asc"
-    validate_certs: false
+    validate_certs: true
     mode: ug=rw,o=r
   become: true
   tags: ["postgres"]

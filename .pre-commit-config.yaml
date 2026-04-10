@@ -1,25 +1,30 @@
 ---
+default_language_version:
+  python: python3.12
 
 ci:
   autoupdate_schedule: monthly
 
 default_stages:
-- commit
+  - pre-commit
+
 exclude: docs|migrations|.git|.tox|deploy|bin
 fail_fast: false
 
 repos:
-- hooks:
-  - id: check-toml
-  - id: check-vcs-permalinks
-  - exclude: "/templates/"
-    id: check-yaml
-  - id: end-of-file-fixer
-  - id: trailing-whitespace
-  repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: check-yaml
+        exclude: "/templates/"
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
 
-- hooks:
-  - id: ansible-lint
-  repo: https://github.com/ansible/ansible-lint
-  rev: v24.2.0
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v6.22.2
+    hooks:
+      - id: ansible-lint
+        additional_dependencies:
+          - ansible-core==2.16.6
