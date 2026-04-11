@@ -1,28 +1,40 @@
-## DHIS2 Deployment Playbook
+# DHIS2 Deployment Playbook
 
-### Introduction
+[![CI](https://github.com/saladgg/dhis2-deployment-playbook/actions/workflows/ci.yaml/badge.svg)](https://github.com/saladgg/dhis2-deployment-playbook/actions/workflows/ci.yaml)
+[![Ansible](https://img.shields.io/badge/Ansible-%3E%3D2.14-blue?logo=ansible)](https://docs.ansible.com)
+[![DHIS2](https://img.shields.io/badge/DHIS2-v41.0.1-orange)](https://dhis2.org)
+[![License](https://img.shields.io/github/license/saladgg/dhis2-deployment-playbook)](LICENSE)
 
-This is a simple repository meant to help in deployment of District Health Information System 2 (DHIS2). DHIS2 is an open source, web-based platform most commonly used as a health management information system (HMIS).
-More details on the application can be found from the official site [here](https://docs.dhis2.org/en/use/what-is-dhis2.html)
+An Ansible-based automation playbook for deploying [DHIS2](https://docs.dhis2.org/en/use/what-is-dhis2.html) (District Health Information System 2), an open-source, web-based health management information system (HMIS).
 
-### What are the benefits of using this approach?
+## Benefits
 
-- **Automation & Efficiency:** The repository automates the entire deployment process, reducing manual intervention and ensuring consistent setups across environments.
-- **Error Reduction:** By automating complex tasks, the chances of human error are minimized, leading to more reliable deployments.
-- **Scalability:** Easily scale up deployments across multiple servers or environments by simply running the Ansible playbooks, making it suitable for large-scale DHIS2 implementations.
-- **Flexibility:** Allows seamless switching between different deployment environments (e.g., development, staging, production) without manual configuration changes.
-- **Customization:** The playbooks can be adjusted to cater to specific needs like custom PostgreSQL tuning or specific service configurations, making them highly adaptable.
-- **Reusability:** The repository can be reused for future DHIS2 deployments or updates, streamlining ongoing maintenance and upgrades.
+- **Automation & Efficiency:** Automates the entire deployment process, reducing manual intervention and ensuring consistent setups across environments.
+- **Error Reduction:** Minimizes human error, leading to more reliable deployments.
+- **Scalability:** Easily scale deployments across multiple servers by running the playbooks against different inventories.
+- **Flexibility:** Seamlessly switch between development, staging, and production environments without manual configuration changes.
+- **Customization:** Adjust PostgreSQL tuning, Java options, and service configurations to fit specific needs.
+- **Reusability:** Reuse for future DHIS2 deployments, updates, or upgrades.
 
-To understand this repo and know how to use it effectively, you are required to understand what [Ansible](https://docs.ansible.com) is,
-how it works and specifically the following Ansible components:
+## Stack
 
-- [Roles](https://docs.ansible.com/ansible/latest/user_guide/playbooks_reuse_roles.html)
-- [Playbooks](https://docs.ansible.com/ansible/latest/user_guide/playbooks.html)
-- [Inventories](https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html)
+| Component          | Version          |
+|--------------------|------------------|
+| DHIS2              | 41.0.1           |
+| Java               | OpenJDK 21       |
+| Tomcat             | 9 (user instance)|
+| PostgreSQL         | 15               |
+| PostGIS            | 3                |
+| Reverse Proxy      | Caddy            |
+| Target OS          | Ubuntu 24.04 LTS |
 
-Repository directory structure
-------------------------
+## Prerequisites
+
+- **Ansible 2.14+** on the [control node](https://docs.ansible.com/ansible/latest/getting_started/index.html#getting-started-with-ansible). See the [installation docs](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible).
+- SSH access to target hosts (if not deploying to localhost). Configure `ssh.cfg` using `ssh.cfg.template` as a reference.
+- Familiarity with Ansible [Roles](https://docs.ansible.com/ansible/latest/user_guide/playbooks_reuse_roles.html), [Playbooks](https://docs.ansible.com/ansible/latest/user_guide/playbooks.html), and [Inventories](https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html).
+
+## Repository Structure
 
 ```
 dhis2-deployment-playbook
@@ -46,46 +58,56 @@ dhis2-deployment-playbook
 └── README.md
 ```
 
-Managing secrets
-----------------
-- Configuration files under inventories may contain values that need to be kept secret. [Ansible vault](https://docs.ansible.com/ansible/latest/vault_guide/vault.html) helps to encrypt variables and files.
-- **NOTE**: this repo is essentially a template that can be improvised for individual use, that said, all secrets here have been
-  encrypted with a simple password: `1234`
-- **WARNING**: Before using this in any real environment, you **must** re-encrypt all vault files with a strong password. Run `ansible-vault rekey <vault_file> --ask-vault-password` for each vault file to replace the default password.
+## Getting Started
+
+Clone the repo and install Ansible Galaxy dependencies:
 
 ```bash
-dhis2-dep-pb~$ ansible-vault encrypt inventories/his_servers/group_vars/all/vault.yml --ask-vault-password
-dhis2-dep-pb~$ ansible-vault decrypt inventories/his_servers/group_vars/all/vault.yml --ask-vault-password
+git clone https://github.com/saladgg/dhis2-deployment-playbook.git
+cd dhis2-deployment-playbook
+ansible-galaxy collection install -r requirements.yml
 ```
 
-Prerequisites
--------------
+## Usage
 
-Before running the playbooks, you will need to ensure you have `Ansible 2.14` or above installed on the [control node](https://docs.ansible.com/ansible/latest/getting_started/index.html#getting-started-with-ansible).
-Check the Ansible [installation docs](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible) on how to do that.
-Also, make sure your target host(if not localhost) is accessible through ssh and configure `ssh.cfg` file according to your need.
+Run deployment against all hosts in `dhis2_servers` group:
 
-Cloning the repo:
------------------
-- First, clone the repo, cd into it and run below command to install requirements:
 ```bash
-dhis2-dep-pb~$ ansible-galaxy collection install -r requirements.yml
+ansible-playbook -i inventories/his_servers plays/install_dhis2.yml -vv
 ```
 
-Sample deployment commands:
--------------------------
-Once the requirements have been installed successfully, you can run deployment using one of the commands below:
+Limit to the control node only:
 
-`dhis2-dep-pb~$ ansible-playbook -i inventories/<inventory> plays/<playbook>`
+```bash
+ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml
+```
 
-Run deployment against all servers accessible under `dhis2_servers` group of hosts:
+Skip deploying Caddy reverse proxy:
 
-`dhis2-dep-pb~$ ansible-playbook -i inventories/his_servers plays/install_dhis2.yml -vv`
+```bash
+ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml -e dhis2_caddy_as_reverse_proxy=false
+```
 
-Limit the deployment to the control node:
+General form:
 
-`dhis2-dep-pb~$ ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml`
+```bash
+ansible-playbook -i inventories/<inventory> plays/<playbook>
+```
 
-Skip deploying caddy server:
+## Managing Secrets
 
-`dhis2-dep-pb~$ ansible-playbook -i inventories/his_servers -l "local_host" plays/install_dhis2.yml -e dhis2_caddy_as_reverse_proxy=false`
+Configuration files under `inventories/` may contain values that need to be kept secret. [Ansible Vault](https://docs.ansible.com/ansible/latest/vault_guide/vault.html) is used to encrypt these variables.
+
+> **Note:** This repo is a template for individual use. All secrets are encrypted with the password: `1234`
+>
+> **Warning:** Before using this in any real environment, you **must** re-encrypt all vault files with a strong password:
+> ```bash
+> ansible-vault rekey <vault_file> --ask-vault-password
+> ```
+
+Encrypt or decrypt a vault file:
+
+```bash
+ansible-vault encrypt inventories/his_servers/group_vars/all/vault.yml --ask-vault-password
+ansible-vault decrypt inventories/his_servers/group_vars/all/vault.yml --ask-vault-password
+```
